@@ -21,6 +21,23 @@ from airflow.utils import TemporaryDirectory
 from airflow.configuration import conf
 import airflow.security.utils as utils
 
+
+def run_cmd(cmd, verbose=True, cwd=None):
+    sp = subprocess.Popen(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        cwd=cwd)
+    self.sp = sp
+    stdout = ''
+    for line in iter(sp.stdout.readline, ''):
+        stdout += line
+        if verbose:
+            logging.info(line.strip())
+    sp.wait()
+
+    return sp.returncode
+
 class HiveCliHook(BaseHook):
     """
     Simple wrapper around the hive CLI.
@@ -104,20 +121,10 @@ class HiveCliHook(BaseHook):
                     hive_cmd.extend(hive_params_list)
                 if verbose:
                     logging.info(" ".join(hive_cmd))
-                sp = subprocess.Popen(
-                    hive_cmd,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.STDOUT,
-                    cwd=tmp_dir)
-                self.sp = sp
-                stdout = ''
-                for line in iter(sp.stdout.readline, ''):
-                    stdout += line
-                    if verbose:
-                        logging.info(line.strip())
-                sp.wait()
 
-                if sp.returncode:
+                retcode, stdout = run_cmd(hive_cmd, verbose=verbose,
+                    cwd=tmp_dir)
+                if retcode:
                     raise AirflowException(stdout)
 
                 return stdout
@@ -437,7 +444,12 @@ class HiveServer2Hook(BaseHook):
                 cur.execute(cmd)
                 logging.info("Completed Data Extract to " + directory)
 
-        os.system("cat {directory}/* > {csv_filepath}".format(**locals()))
+        cmd = ['cat', directory + '/*', '>', csv_filepath]
+        logging.info("Running cmd: " + ' '.join(cmd))
+        retcode, stdout = run_cmd(cmd)
+        if retcode:
+            raise AirflowException(stdout)
+
         logging.info("Completed Writing Data to " + csv_filepath)
 
     def get_records(self, hql, schema='default'):
