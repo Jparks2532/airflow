@@ -439,6 +439,7 @@ class HiveServer2Hook(BaseHook):
 
         os.system("cat {directory}/* > {csv_filepath}".format(**locals()))
         logging.info("Completed Writing Data to " + csv_filepath)
+        a=1/0
 
     def get_records(self, hql, schema='default'):
         '''
