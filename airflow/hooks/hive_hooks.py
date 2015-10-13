@@ -421,7 +421,7 @@ class HiveServer2Hook(BaseHook):
             return results
 
     def to_csv(self, hql, csv_filepath, schema='default', delimiter=','):
-        with TemporaryDirectory() as directory:
+        with TemporaryDirectory(prefix='airflow_to_csv_') as directory:
             cmd = """
                 INSERT OVERWRITE LOCAL DIRECTORY '{directory}'
                 ROW FORMAT DELIMITED
