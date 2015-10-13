@@ -420,23 +420,18 @@ class HiveServer2Hook(BaseHook):
                         }
             return results
 
-    def to_csv(self, hql, csv_filepath, schema='default'):
-        schema = schema or 'default'
+    def to_csv(self, hql, csv_filepath, schema='default', delimiter=','):
+        cmd = """
+            INSERT OVERWRITE LOCAL DIRECTORY {csv_filepath}
+            ROW FORMAT DELIMITED
+            FIELDS TERMINATED BY '{delimiter}'
+            {hql}
+            """.format(**locals())
         with self.get_conn() as conn:
             with conn.cursor() as cur:
-                logging.info("Running query: " + hql)
-                cur.execute(hql)
-                schema = cur.getSchema()
-                with open(csv_filepath, 'w') as f:
-                    writer = csv.writer(f)
-                    writer.writerow([c['columnName'] for c in cur.getSchema()])
-                    i = 0
-                    while cur.hasMoreRows:
-                        rows = [row for row in cur.fetchmany() if row]
-                        writer.writerows(rows)
-                        i += len(rows)
-                        logging.info("Written {0} rows so far.".format(i))
-                    logging.info("Done. Loaded a total of {0} rows.".format(i))
+                logging.info("Running query: " + cmd)
+                cur.execute(cmd)
+                logging.info("Completed Data Extract to " + csv_filepath)
 
     def get_records(self, hql, schema='default'):
         '''
