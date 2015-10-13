@@ -22,18 +22,15 @@ from airflow.configuration import conf
 import airflow.security.utils as utils
 
 
-def run_cmd(cmd, verbose=True, cwd=None):
+def run_cmd(cmd):
     sp = subprocess.Popen(
         cmd,
         stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        cwd=cwd)
-    self.sp = sp
+        stderr=subprocess.STDOUT)
     stdout = ''
     for line in iter(sp.stdout.readline, ''):
         stdout += line
-        if verbose:
-            logging.info(line.strip())
+        logging.info(line.strip())
     sp.wait()
 
     return sp.returncode
@@ -122,9 +119,20 @@ class HiveCliHook(BaseHook):
                 if verbose:
                     logging.info(" ".join(hive_cmd))
 
-                retcode, stdout = run_cmd(hive_cmd, verbose=verbose,
+                sp = subprocess.Popen(
+                    hive_cmd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
                     cwd=tmp_dir)
-                if retcode:
+                self.sp = sp
+                stdout = ''
+                for line in iter(sp.stdout.readline, ''):
+                    stdout += line
+                    if verbose:
+                        logging.info(line.strip())
+                sp.wait()
+
+                if sp.returncode:
                     raise AirflowException(stdout)
 
                 return stdout
