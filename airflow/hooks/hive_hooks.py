@@ -422,22 +422,23 @@ class HiveServer2Hook(BaseHook):
             return results
 
     def to_csv(self, hql, csv_filepath, schema='default', delimiter=','):
-        with TemporaryDirectory(prefix='airflow_to_csv_') as directory:
-            cmd = """
-                INSERT OVERWRITE LOCAL DIRECTORY '{directory}'
-                ROW FORMAT DELIMITED
-                FIELDS TERMINATED BY '{delimiter}'
-                {hql}
-                """.format(**locals())
-            with self.get_conn() as conn:
-                with conn.cursor() as cur:
-                    logging.info("Running query: " + cmd)
-                    cur.execute("SET hive.exec.compress.output=false;")
-                    cur.execute(cmd)
-                    logging.info("Completed Data Extract to " + directory)
+        #with TemporaryDirectory(prefix='airflow_to_csv_') as directory:
+        directory = '/tmp/airflow_to_csv_8oSt4G'
+        cmd = """
+            INSERT OVERWRITE LOCAL DIRECTORY '{directory}'
+            ROW FORMAT DELIMITED
+            FIELDS TERMINATED BY '{delimiter}'
+            {hql}
+            """.format(**locals())
+        with self.get_conn() as conn:
+            with conn.cursor() as cur:
+                logging.info("Running query: " + cmd)
+                cur.execute("SET hive.exec.compress.output=false;")
+                cur.execute(cmd)
+                logging.info("Completed Data Extract to " + directory)
 
-            os.system("cat {directory}/* > {csv_filepath}".format(**locals()))
-            logging.info("Completed Writing Data to " + csv_filepath)
+        os.system("cat {directory}/* > {csv_filepath}".format(**locals()))
+        logging.info("Completed Writing Data to " + csv_filepath)
 
     def get_records(self, hql, schema='default'):
         '''
