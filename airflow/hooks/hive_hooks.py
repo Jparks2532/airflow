@@ -3,6 +3,7 @@ from builtins import zip
 from past.builtins import basestring
 import csv
 import logging
+import os
 import re
 import subprocess
 from tempfile import NamedTemporaryFile
