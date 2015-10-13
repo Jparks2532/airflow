@@ -436,7 +436,7 @@ class HiveServer2Hook(BaseHook):
                     cur.execute(cmd)
                     logging.info("Completed Data Extract to " + directory)
 
-            os.system("cat {directory}/* > {csv_filepath}".format(**locals))
+            os.system("cat {directory}/* > {csv_filepath}".format(**locals()))
             logging.info("Completed Writing Data to " + csv_filepath)
 
     def get_records(self, hql, schema='default'):
