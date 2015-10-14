@@ -33,7 +33,7 @@ def run_cmd(cmd):
         logging.info(line.strip())
     sp.wait()
 
-    return sp.returncode
+    return sp.returncode, stdout
 
 class HiveCliHook(BaseHook):
     """
@@ -451,12 +451,13 @@ class HiveServer2Hook(BaseHook):
                 cur.execute("SET hive.exec.compress.output=false;")
                 cur.execute(cmd)
                 logging.info("Completed Data Extract to " + directory)
+                cur.execute("!cat {directory}/* > {csv_filepath}".format(**locals()))
 
-        cmd = ['cat', directory + '/*', '>', csv_filepath]
-        logging.info("Running cmd: " + ' '.join(cmd))
-        retcode, stdout = run_cmd(cmd)
-        if retcode:
-            raise AirflowException(stdout)
+        #cmd = ['cat', directory + '/*', '>', csv_filepath]
+        #logging.info("Running cmd: " + ' '.join(cmd))
+        #retcode, stdout = run_cmd(cmd)
+        #if retcode:
+        #    raise AirflowException(stdout)
 
         logging.info("Completed Writing Data to " + csv_filepath)
 
