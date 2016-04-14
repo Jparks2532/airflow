@@ -5,6 +5,7 @@ import csv
 import logging
 import re
 import subprocess
+import time
 from tempfile import NamedTemporaryFile
 
 
@@ -20,6 +21,8 @@ from airflow.utils import TemporaryDirectory
 from airflow.configuration import conf
 import airflow.security.utils as utils
 
+HIVE_QUEUE_PRIORITIES = ['VERY_HIGH','HIGH','NORMAL','LOW','VERY_LOW']
+
 class HiveCliHook(BaseHook):
     """
     Simple wrapper around the hive CLI.
@@ -32,17 +35,40 @@ class HiveCliHook(BaseHook):
     Note that you can also set default hive CLI parameters using the
     ``hive_cli_params`` to be used in your connection as in
     ``{"hive_cli_params": "-hiveconf mapred.job.tracker=some.jobtracker:444"}``
+
+    :param mapred_queue: queue used by the Hadoop CapacityScheduler
+    :type  mapred_queue: string
+    :param mapred_queue_priority: priority within CapacityScheduler queue.
+        Possible settings include: VERY_HIGH, HIGH, NORMAL, LOW, VERY_LOW
+    :type  mapred_queue_priority: string
+    :param mapred_job_name: This name will appear in the jobtracker.
+        This can make monitoring easier.
+    :type  mapred_job_name: string
     """
 
     def __init__(
             self,
             hive_cli_conn_id="hive_cli_default",
-            run_as=None):
+            run_as=None,
+            mapred_queue=None,
+            mapred_queue_priority=None,
+            mapred_job_name=None,):
         conn = self.get_connection(hive_cli_conn_id)
         self.hive_cli_params = conn.extra_dejson.get('hive_cli_params', '')
         self.use_beeline = conn.extra_dejson.get('use_beeline', False)
         self.conn = conn
         self.run_as = run_as
+
+        if mapred_queue_priority:
+            mapred_queue_priority = mapred_queue_priority.upper()
+            if mapred_queue_priority not in HIVE_QUEUE_PRIORITIES:
+                raise AirflowException(
+                    "Invalid Mapred Queue Priority.  Valid values are: "
+                    "{}".format(', '.join(HIVE_QUEUE_PRIORITIES)))
+
+        self.mapred_queue = hive_queue
+        self.mapred_queue_priority = hive_queue_priority
+        self.mapred_job_name = hive_job_name
 
     def run_cli(self, hql, schema=None, verbose=True):
         """
@@ -100,7 +126,26 @@ class HiveCliHook(BaseHook):
 
                 if self.hive_cli_params:
                     hive_params_list = self.hive_cli_params.split()
-                    hive_cmd.extend(hive_params_list)
+                else:
+                    hive_params_list = []
+
+                if self.mapred_queue:
+                    hive_params_list.append(
+                        '-hiveconf mapreduce.job.queuename={}'.format(
+                            self.mapred_queue))
+
+                if self.mapred_queue_priority:
+                    hive_params_list.append(
+                        '-hiveconf mapreduce.job.priority={}'.format(
+                            self.mapred_queue_priority))
+
+                if self.mapred_job_name:
+                    hive_params_list.append(
+                        '-hiveconf mapred.job.name={}'.format(
+                            self.mapred_job_name))
+
+                hive_cmd.extend(hive_params_list)
+
                 if verbose:
                     logging.info(" ".join(hive_cmd))
                 sp = subprocess.Popen(
@@ -231,6 +276,8 @@ class HiveCliHook(BaseHook):
         if hasattr(self, 'sp'):
             if self.sp.poll() is None:
                 print("Killing the Hive job")
+                self.sp.terminate()
+                time.sleep(60)
                 self.sp.kill()
 
 
